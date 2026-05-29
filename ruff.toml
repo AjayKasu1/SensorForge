@@ -1,0 +1,16 @@
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[lint]
+# E,F = pyflakes + pycodestyle. I,UP = imports + pyupgrade.
+# B,SIM = bugbear + flake8-simplify. RUF = ruff-native rules.
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[lint.per-file-ignores]
+# Tests get to be expressive.
+"tests/**" = ["B011"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
