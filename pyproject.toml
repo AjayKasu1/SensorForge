@@ -15,8 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-# Wired up in Phase 1 when src/sensorforge/cli.py lands.
-# sensorforge = "sensorforge.cli:main"
+sensorforge = "sensorforge.cli:main"
 
 [build-system]
 requires = ["hatchling"]
