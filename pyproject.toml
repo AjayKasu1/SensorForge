@@ -7,8 +7,12 @@ requires-python = ">=3.11,<3.12"
 authors = [{ name = "Ajay Kasu" }]
 license = { text = "MIT" }
 # Runtime deps are added per phase as real imports appear.
-# Phase 1 will pull in: mujoco, numpy, opencv-python.
-dependencies = []
+dependencies = [
+    "mujoco>=3.1,<4",
+    "numpy>=1.26,<3",
+    "opencv-python>=4.9,<5",
+    "pydantic>=2.6,<3",
+]
 
 [project.scripts]
 # Wired up in Phase 1 when src/sensorforge/cli.py lands.
