@@ -17,7 +17,7 @@ A Python framework that:
 ## Why it exists
 
 Sim-to-real calibration is usually done by hand. This project explores whether an agent can
-drive the loop while staying auditable — every parameter change is logged with a justification.
+drive the loop while staying auditable. Every parameter change is logged with a justification.
 
 ## Quickstart
 
@@ -34,11 +34,11 @@ make demo   # TODO (Phase 5)
 
 ## Demo
 
-TODO — 90-second screen recording (Phase 5).
+TODO. 90-second screen recording (Phase 5).
 
 ## Results
 
-TODO — table of SSIM / PSNR / ΔE2000 / EMVA-1288 numbers on the reference webcam (Phase 4–5).
+TODO. Table of SSIM / PSNR / ΔE2000 / EMVA-1288 numbers on the reference webcam (Phase 4–5).
 
 ## Architecture
 

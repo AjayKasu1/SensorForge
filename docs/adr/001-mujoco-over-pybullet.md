@@ -1,4 +1,4 @@
-# ADR 001 — MuJoCo over PyBullet for simulation
+# ADR 001: MuJoCo over PyBullet for simulation
 
 - **Date:** 2026-05-29
 - **Status:** Accepted
@@ -19,5 +19,5 @@ Use MuJoCo via the `mujoco` Python package (the DeepMind bindings, not legacy `m
 - CPU rendering is fast enough for our resolutions (<= 640×480), so no GPU dependency.
 - MJCF scenes are concise and diff-friendly compared to URDF + world files.
 - We give up PyBullet's larger contact-physics community, which is irrelevant here since
-  we are not simulating dynamics — only rendering.
+  we are not simulating dynamics, only rendering.
 - Isaac Sim is off the table: GPU-bound, heavy install, overkill for a single-camera scene.
