@@ -1,0 +1,56 @@
+<mujoco model="checkerboard_calibration">
+  <!-- Phase 1 calibration scene: a checkerboard target lit by a single
+       controllable light, viewed by a camera with webcam-class intrinsics.
+       Lengths are SI (meters); intrinsic comments give the mm equivalents. -->
+  <compiler angle="radian"/>
+
+  <visual>
+    <!-- Kill the default headlight. Calibration must control illumination
+         explicitly, not via a camera-locked lamp that moves with the view.
+         A little ambient keeps shadowed faces from going pure black. -->
+    <headlight ambient="0.05 0.05 0.05" diffuse="0 0 0" specular="0 0 0"/>
+    <global offwidth="1280" offheight="960"/>
+  </visual>
+
+  <asset>
+    <!-- Builtin checker texture: no image file to ship or keep in sync.
+         Mapped onto a plane (MuJoCo's reliable path for 2d textures, same as
+         the stock ground-plane checker). texrepeat with texuniform="true"
+         tiles the pattern in world units across the plane's extent. Exact
+         square-count matching to the printed target() is a Phase 3 corner-
+         detection concern, not needed here. -->
+    <texture name="checker" type="2d" builtin="checker"
+             rgb1="1 1 1" rgb2="0 0 0" width="512" height="512"/>
+    <material name="checker_mat" texture="checker" texrepeat="17 17"
+              texuniform="true" reflectance="0"/>
+    <material name="floor_mat" rgba="0.3 0.3 0.3 1" reflectance="0"/>
+  </asset>
+
+  <worldbody>
+    <geom name="floor" type="plane" size="2 2 0.1" material="floor_mat"/>
+
+    <!-- Target plane stood vertically at z=0.3, normal pointing -y toward the
+         camera (zaxis is the plane normal). size = (half-width, half-height,
+         checker square size in meters). -->
+    <body name="target" pos="0 0.4 0.3">
+      <geom name="target_board" type="plane" size="0.15 0.11 0.03"
+            zaxis="0 -1 0" material="checker_mat"/>
+    </body>
+
+    <!-- Single controllable light. Its diffuse intensity is the Phase 1
+         "exposure proxy" (see sim/camera.py). MuJoCo has no true area light,
+         so this is a point source; the area-light idealization is a documented
+         limitation, not a claim. -->
+    <light name="key" pos="0 -0.5 0.45" dir="0 1 -0.15"
+           diffuse="1 1 1" specular="0.1 0.1 0.1" castshadow="true"/>
+
+    <!-- Camera looks along +y (-z axis of the camera frame), world-up = +z.
+         Webcam-class intrinsics: 1/4" sensor 3.58x2.69 mm, 3.6 mm focal,
+         640x480. fovx works out to ~53 deg. -->
+    <camera name="cam" mode="fixed" pos="0 -0.5 0.3"
+            xyaxes="1 0 0 0 0 1"
+            resolution="640 480"
+            sensorsize="0.00358 0.00269"
+            focal="0.0036 0.0036"/>
+  </worldbody>
+</mujoco>
