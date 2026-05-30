@@ -8,12 +8,14 @@ authors = [{ name = "Ajay Kasu" }]
 license = { text = "MIT" }
 # Runtime deps are added per phase as real imports appear.
 dependencies = [
+    "colour-science>=0.4,<0.5",
     "loguru>=0.7,<0.8",
     "matplotlib>=3.8,<4",
     "mujoco>=3.1,<4",
     "numpy>=1.26,<3",
     "opencv-python>=4.9,<5",
     "pydantic>=2.6,<3",
+    "scikit-image>=0.22,<0.26",
 ]
 
 [project.scripts]
@@ -32,6 +34,7 @@ dev = [
     "ruff>=0.6,<0.13",
     "ipykernel>=6.29,<7",
     "nbconvert>=7,<8",
+    "pytest-cov>=5,<8",
 ]
 
 [tool.pytest.ini_options]
