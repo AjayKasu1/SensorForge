@@ -128,6 +128,15 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
     else:
         real = capture_real("webcam", webcam_index=args.index, frames=args.frames, rng=rng)
 
+    # A real webcam may not honor the requested resolution; match it to the sim
+    # so the metrics compare pixel-for-pixel.
+    if real.shape[:2] != linear.shape[:2]:
+        import cv2
+
+        h, w = linear.shape[:2]
+        real = cv2.resize(real, (w, h), interpolation=cv2.INTER_AREA)
+        logger.info("resized webcam capture to sim resolution {}x{}", w, h)
+
     run_dir = RUNS_DIR / datetime.now().strftime("%Y%m%d_%H%M%S")
     start = (
         best_prior(args.target, RUNS_DIR / "learnings.jsonl") if args.warm_start else None
