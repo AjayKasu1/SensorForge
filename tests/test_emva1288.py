@@ -1,7 +1,9 @@
 import numpy as np
 
 from sensorforge.metrics.emva1288 import (
+    dsnu,
     photon_transfer,
+    prnu,
     snr_curve,
     temporal_dark_noise,
 )
@@ -43,3 +45,41 @@ def test_snr_increases_with_signal(synth_sensor):
     assert np.all(np.diff(snr) > 0)  # SNR grows with signal
     # Shot-limited SNR ~ sqrt(photons); roughly tracks within the sweep.
     assert snr[-1] > snr[0]
+
+
+def test_dsnu_recovers_injected_dark_pattern(synth_sensor):
+    K = 0.5
+    rng = np.random.default_rng(10)
+    dsnu_map_e = rng.normal(0.0, 30.0, SHAPE)  # known spatial std of 30 e-
+    darks = synth_sensor(
+        SHAPE,
+        photons_e=0.0,
+        gain_dn_per_e=K,
+        dark_e=200.0,
+        read_noise_e=3.0,
+        dsnu_map_e=dsnu_map_e,
+        rng=rng,
+        n=64,
+    )
+    # Expected DSNU in DN is K * std(dsnu_map_e).
+    assert np.isclose(dsnu(darks), K * 30.0, rtol=0.05)
+
+
+def test_prnu_recovers_injected_gain_spread(synth_sensor):
+    K = 0.5
+    rng = np.random.default_rng(11)
+    prnu_map = rng.normal(1.0, 0.03, SHAPE)  # 3% photo-response spread
+    brights = synth_sensor(
+        SHAPE,
+        photons_e=2500.0,
+        gain_dn_per_e=K,
+        dark_e=200.0,
+        read_noise_e=3.0,
+        prnu_map=prnu_map,
+        rng=rng,
+        n=64,
+    )
+    darks = synth_sensor(
+        SHAPE, photons_e=0.0, gain_dn_per_e=K, dark_e=200.0, read_noise_e=3.0, rng=rng, n=64
+    )
+    assert np.isclose(prnu(brights, darks), 3.0, rtol=0.05)

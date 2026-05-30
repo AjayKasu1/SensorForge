@@ -66,6 +66,39 @@ def photon_transfer(levels: Sequence[tuple[NDArray, NDArray]]) -> PhotonTransfer
     )
 
 
+def _mean_temporal_variance(stack: NDArray) -> float:
+    """Per-pixel temporal variance, averaged spatially."""
+    return float(np.var(stack.astype(np.float64), axis=0, ddof=1).mean())
+
+
+def dsnu(dark_stack: NDArray) -> float:
+    """Dark signal non-uniformity (spatial std of dark FPN, DN).
+
+    Averaging L dark frames suppresses temporal noise by L; we still subtract
+    the residual temporal variance (var/L) from the spatial variance of the
+    averaged image so DSNU reflects fixed pattern alone. EMVA-1288 sec. 8.
+    """
+    averaged = dark_stack.astype(np.float64).mean(axis=0)
+    n = dark_stack.shape[0]
+    s2 = averaged.var() - _mean_temporal_variance(dark_stack) / n
+    return float(np.sqrt(max(s2, 0.0)))
+
+
+def prnu(bright_stack: NDArray, dark_stack: NDArray) -> float:
+    """Photo-response non-uniformity (percent).
+
+    Spatial std of the dark-subtracted mean response over its spatial mean,
+    with the residual temporal variance removed. EMVA-1288 sec. 8.
+    """
+    response = bright_stack.astype(np.float64).mean(axis=0) - dark_stack.astype(np.float64).mean(
+        axis=0
+    )
+    nb, nd = bright_stack.shape[0], dark_stack.shape[0]
+    residual = _mean_temporal_variance(bright_stack) / nb + _mean_temporal_variance(dark_stack) / nd
+    s2 = response.var() - residual
+    return float(100.0 * np.sqrt(max(s2, 0.0)) / response.mean())
+
+
 def snr_curve(
     levels: Sequence[tuple[NDArray, NDArray]], dark: tuple[NDArray, NDArray]
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
