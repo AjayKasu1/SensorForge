@@ -79,3 +79,33 @@ def test_calibrate_sim_runs_and_writes_artifacts(tmp_path, monkeypatch):
     state = json.loads((rd / "state.json").read_text())
     assert state["stop_reason"] == "within_tolerance"
     assert state["best"]["metrics"]["deltaE2000"] < 3.0
+
+
+def test_calibrate_npy_source_runs_against_captured_reference(tmp_path, monkeypatch):
+    from sensorforge import cli
+
+    monkeypatch.setattr(cli, "RUNS_DIR", tmp_path / "runs")
+    # A pre-captured reference stack like `sensorforge capture` writes.
+    ref = tmp_path / "real.npy"
+    np.save(ref, np.full((4, 480, 640, 3), 0.5, dtype=np.float32))
+
+    rc = main(
+        [
+            "calibrate",
+            "--real-source",
+            "npy",
+            "--real-npy",
+            str(ref),
+            "--proposer",
+            "heuristic",
+            "--scene",
+            str(SCENE),
+            "--max-iters",
+            "3",
+            "--avg",
+            "4",
+        ]
+    )
+    assert rc == 0
+    rd = next((tmp_path / "runs").glob("*/"))
+    assert (rd / "report.md").exists() and (rd / "state.json").exists()

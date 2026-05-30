@@ -125,6 +125,13 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
         real = capture_real(
             "sim", linear_rgb=linear, hidden_params=hidden, frames=args.avg, rng=rng
         )
+    elif args.real_source == "npy":
+        # A reference captured earlier with `sensorforge capture` (decoupled so
+        # the camera grab can happen wherever permissions allow).
+        arr = np.load(args.real_npy)
+        if arr.ndim == 4:  # frame stack -> temporal average
+            arr = arr.mean(axis=0)
+        real = arr if arr.dtype == np.uint8 else (np.clip(arr, 0, 1) * 255 + 0.5).astype(np.uint8)
     else:
         real = capture_real("webcam", webcam_index=args.index, frames=args.frames, rng=rng)
 
@@ -196,7 +203,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p_cal = sub.add_parser("calibrate", help="run the LLM calibration loop")
     p_cal.add_argument("--target", choices=["uniform", "checkerboard"], default="uniform")
-    p_cal.add_argument("--real-source", choices=["sim", "webcam"], default="sim")
+    p_cal.add_argument("--real-source", choices=["sim", "webcam", "npy"], default="sim")
+    p_cal.add_argument("--real-npy", default=None, help="path to a captured .npy (real-source npy)")
     p_cal.add_argument("--scene", default="checkerboard", help="scene name or path to .xml")
     p_cal.add_argument("--max-iters", type=int, default=20)
     p_cal.add_argument("--tolerance", type=float, default=3.0, help="target deltaE2000")
