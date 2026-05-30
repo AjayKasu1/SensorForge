@@ -200,7 +200,9 @@ def main(argv: list[str] | None = None) -> int:
         default="llm",
         help="llm (needs Ollama/API) or heuristic (no LLM, reproducible)",
     )
-    p_cal.add_argument("--llm", default=None, help="ollama|openai|anthropic (else SENSORFORGE_LLM)")
+    p_cal.add_argument(
+        "--llm", default=None, help="ollama|openai|anthropic|gemini (else SENSORFORGE_LLM)"
+    )
     p_cal.add_argument("--model", default=None, help="override the model name, e.g. llama3.1:8b")
     p_cal.add_argument("--seed", type=int, default=0)
     p_cal.add_argument("--warm-start", action="store_true", help="seed from best prior run")

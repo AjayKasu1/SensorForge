@@ -4,6 +4,7 @@ import pytest
 
 from sensorforge.agent.llm import (
     AnthropicClient,
+    GeminiClient,
     Message,
     OllamaClient,
     OpenAIClient,
@@ -35,6 +36,20 @@ def test_openai_returns_first_choice():
     with patch("openai.OpenAI", return_value=fake):
         out = OpenAIClient().generate([Message("user", "q")])
     assert out == "x"
+
+
+def test_gemini_splits_system_and_maps_assistant_role(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    fake = MagicMock()
+    fake.models.generate_content.return_value.text = "done"
+    with patch("google.genai.Client", return_value=fake):
+        out = GeminiClient().generate(
+            [Message("system", "be terse"), Message("user", "go"), Message("assistant", "ok")]
+        )
+    assert out == "done"
+    kwargs = fake.models.generate_content.call_args.kwargs
+    roles = [c["role"] for c in kwargs["contents"]]
+    assert roles == ["user", "model"]  # assistant -> model, system pulled out
 
 
 def test_factory_routes_by_env(monkeypatch):
