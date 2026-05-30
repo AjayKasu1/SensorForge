@@ -42,6 +42,15 @@ def test_factory_routes_by_env(monkeypatch):
     assert isinstance(make_llm_client(), OllamaClient)
 
 
+def test_factory_model_override(monkeypatch):
+    monkeypatch.delenv("OLLAMA_HOST", raising=False)
+    client = make_llm_client("ollama", "llama3.1:8b")
+    assert isinstance(client, OllamaClient)
+    assert client.model == "llama3.1:8b"
+    # No override falls back to the provider default.
+    assert make_llm_client("ollama").model == "llama3.2"
+
+
 def test_factory_rejects_unknown_provider():
     with pytest.raises(ValueError, match="unknown LLM provider"):
         make_llm_client("gpt5")

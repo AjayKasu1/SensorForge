@@ -71,13 +71,15 @@ class AnthropicClient:
         return resp.content[0].text
 
 
-def make_llm_client(provider: str | None = None) -> LLMClient:
-    """Build the client named by ``provider`` or the SENSORFORGE_LLM env var."""
+def make_llm_client(provider: str | None = None, model: str | None = None) -> LLMClient:
+    """Build the client named by ``provider`` (or the SENSORFORGE_LLM env var),
+    optionally overriding the model name (else the provider's default).
+    """
     provider = (provider or os.environ.get("SENSORFORGE_LLM", "ollama")).lower()
     if provider == "ollama":
-        return OllamaClient()
+        return OllamaClient(model or DEFAULT_OLLAMA_MODEL)
     if provider == "openai":
-        return OpenAIClient()
+        return OpenAIClient(model or DEFAULT_OPENAI_MODEL)
     if provider == "anthropic":
-        return AnthropicClient()
+        return AnthropicClient(model or DEFAULT_ANTHROPIC_MODEL)
     raise ValueError(f"unknown LLM provider {provider!r}; use ollama, openai, or anthropic")

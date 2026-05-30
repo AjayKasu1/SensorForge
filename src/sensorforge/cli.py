@@ -115,7 +115,7 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
     if args.proposer == "heuristic":
         proposer = HeuristicProposer()
     else:
-        proposer = LLMProposer(make_llm_client(args.llm))
+        proposer = LLMProposer(make_llm_client(args.llm, args.model))
     linear = _scene_linear(args.target, args.scene)
     base = ISPParams()
     rng = np.random.default_rng(args.seed)
@@ -201,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         help="llm (needs Ollama/API) or heuristic (no LLM, reproducible)",
     )
     p_cal.add_argument("--llm", default=None, help="ollama|openai|anthropic (else SENSORFORGE_LLM)")
+    p_cal.add_argument("--model", default=None, help="override the model name, e.g. llama3.1:8b")
     p_cal.add_argument("--seed", type=int, default=0)
     p_cal.add_argument("--warm-start", action="store_true", help="seed from best prior run")
     p_cal.add_argument("--gif", default=None, help="write a convergence GIF to this path")
