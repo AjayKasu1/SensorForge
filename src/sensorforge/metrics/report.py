@@ -13,6 +13,7 @@ import numpy as np
 from loguru import logger
 from matplotlib.figure import Figure
 from numpy.typing import NDArray
+from PIL import Image, ImageDraw
 
 from sensorforge.isp.params import ISPParams
 from sensorforge.metrics.emva1288 import PhotonTransfer
@@ -60,6 +61,38 @@ def _save_photon_transfer(path: Path, pt: PhotonTransfer) -> None:
 def _metrics_table(metrics: dict[str, float]) -> str:
     rows = "\n".join(f"| {k} | {v:.4g} |" for k, v in metrics.items())
     return f"| metric | value |\n|---|---|\n{rows}"
+
+
+def write_convergence_gif(
+    out_path: str | Path,
+    sim_frames: list[NDArray],
+    real: NDArray,
+    duration_ms: int = 600,
+    scale: float = 0.5,
+) -> Path:
+    """Animate the sim frame (left) converging toward the real frame (right),
+    one GIF frame per calibration iteration. Used for the README demo.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    panels = []
+    for i, sim in enumerate(sim_frames):
+        combo = np.concatenate([sim, real], axis=1)
+        img = Image.fromarray(combo.astype(np.uint8))
+        if scale != 1.0:
+            img = img.resize((int(img.width * scale), int(img.height * scale)))
+        ImageDraw.Draw(img).text((4, 4), f"iter {i}  (sim | real)", fill=(255, 255, 0))
+        panels.append(img)
+    # Hold the last frame longer so the converged result reads clearly.
+    durations = [duration_ms] * (len(panels) - 1) + [duration_ms * 4]
+    panels[0].save(
+        out_path,
+        save_all=True,
+        append_images=panels[1:],
+        duration=durations,
+        loop=0,
+    )
+    return out_path
 
 
 def write_report(

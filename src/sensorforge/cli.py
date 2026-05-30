@@ -23,7 +23,7 @@ from sensorforge.agent.tools import capture_real
 from sensorforge.capture.targets import checkerboard, uniform_field
 from sensorforge.capture.webcam import Webcam
 from sensorforge.isp.params import ISPParams
-from sensorforge.metrics.report import write_report
+from sensorforge.metrics.report import write_convergence_gif, write_report
 from sensorforge.sim.camera import SimCamera
 from sensorforge.sim.renderer import SimRenderer
 
@@ -154,6 +154,11 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
     best_isp = final.best.params.apply_to(base)
     write_report(run_dir, ctx.render_avg(best_isp), real, final.best.metrics, best_isp)
     record_run(final, run_dir, RUNS_DIR / "learnings.jsonl")
+
+    if args.gif:
+        frames = [ctx.render_avg(a.params.apply_to(base)) for a in final.history]
+        write_convergence_gif(args.gif, frames, real)
+        logger.info("wrote convergence gif to {}", args.gif)
     logger.info(
         "calibrate done: stop={} best deltaE2000={:.3g} report={}/report.md",
         final.stop_reason,
@@ -198,6 +203,7 @@ def main(argv: list[str] | None = None) -> int:
     p_cal.add_argument("--llm", default=None, help="ollama|openai|anthropic (else SENSORFORGE_LLM)")
     p_cal.add_argument("--seed", type=int, default=0)
     p_cal.add_argument("--warm-start", action="store_true", help="seed from best prior run")
+    p_cal.add_argument("--gif", default=None, help="write a convergence GIF to this path")
     p_cal.set_defaults(func=_cmd_calibrate)
 
     args = parser.parse_args(argv)

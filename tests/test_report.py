@@ -2,7 +2,7 @@ import numpy as np
 
 from sensorforge.isp.params import ISPParams
 from sensorforge.metrics.emva1288 import PhotonTransfer
-from sensorforge.metrics.report import write_report
+from sensorforge.metrics.report import write_convergence_gif, write_report
 
 
 def _img(seed):
@@ -30,3 +30,12 @@ def test_report_includes_photon_transfer_when_given(tmp_path):
     path = write_report(tmp_path, _img(2), _img(3), {"SSIM": 0.9}, ISPParams(), photon_transfer=pt)
     assert (tmp_path / "photon_transfer.png").exists()
     assert "System gain K" in path.read_text()
+
+
+def test_convergence_gif_has_one_frame_per_iteration(tmp_path):
+    from PIL import Image
+
+    frames = [_img(i) for i in range(4)]
+    out = write_convergence_gif(tmp_path / "demo.gif", frames, _img(9))
+    assert out.exists()
+    assert Image.open(out).n_frames == 4
