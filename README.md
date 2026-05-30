@@ -52,6 +52,25 @@ The EMVA-1288 estimators (temporal dark noise, photon-transfer system gain,
 PRNU, DSNU) recover injected ground truth within 5%, verified by inject-and-
 recover tests against a synthetic sensor.
 
+### Proposer comparison
+
+The same loop, same target and seed, driven by different proposers. This is the
+point of the abstraction: capability is the lever, the infrastructure is fixed.
+
+| Proposer          | Best ΔE2000 | Trajectory                       | Outcome              |
+|-------------------|------------:|----------------------------------|----------------------|
+| Heuristic         |        1.43 | 16.6 → 1.4                       | converged (4 iters)  |
+| LLM, Llama 3.1 8B |       12.5  | 16.6 → 19.9 → 14.7 → 12.5, plateau | improved, then stalled |
+| LLM, Llama 3.2 3B |       16.6  | 16.6 → 18.4, oscillated          | no improvement       |
+
+The 3B model contradicted its own diagnosis and never improved. The 8B model
+reasoned across iterations (it referenced past attempts and moved the right gain
+in the right direction), cut the error by ~25%, then second-guessed itself and
+plateaued. The deterministic heuristic converges every time. In every case the
+loop clamped bad proposals, detected stalls, and preserved the best state with no
+code change between runs. A frontier API model is the path to closing the gap
+fully (`SENSORFORGE_LLM=anthropic`).
+
 ## How it works
 
 - [docs/architecture.md](docs/architecture.md): components and data flow.
