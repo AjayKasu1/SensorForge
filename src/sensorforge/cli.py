@@ -30,17 +30,32 @@ SCENES_DIR = Path("scenes")
 DATA_DIR = Path("data")
 RUNS_DIR = Path("runs")
 
-# The hidden "real camera look" the agent recovers in sim-as-real mode: a more
-# neutral white balance and slightly different tone than the uncalibrated
-# defaults, so the starting gap is a large color cast (baseline deltaE > 10).
+# The hidden "real camera look" the agent recovers in sim-as-real mode: a near-
+# neutral white balance and different tone vs the uncalibrated defaults, so the
+# starting gap is a large color cast (baseline deltaE2000 > 16 on the uniform
+# target).
 SIM_REAL_PRESET = TunableParams(
-    exposure_ms=11.0,
-    black_level=0.04,
-    awb_gain_r=1.15,
+    exposure_ms=14.0,
+    black_level=0.06,
+    awb_gain_r=1.05,
     awb_gain_g=1.0,
-    awb_gain_b=1.25,
-    gamma=2.0,
+    awb_gain_b=1.1,
+    gamma=1.8,
 )
+
+UNIFORM_LEVEL = 0.5  # mid-gray scene radiance for the uniform calibration target
+
+
+def _scene_linear(target: str, scene: str) -> NDArray[np.float32]:
+    """Linear RGB the ISP calibrates on. The uniform target is a flat field (the
+    ISP's spatial effects still apply); other targets render the MJCF scene.
+    """
+    cam = SimCamera.from_scene(_resolve_scene(scene))
+    if target == "uniform":
+        h, w = cam.intrinsics.height_px, cam.intrinsics.width_px
+        return np.full((h, w, 3), UNIFORM_LEVEL, dtype=np.float32)
+    with SimRenderer(cam) as r:
+        return r.render()
 
 
 def _resolve_scene(scene: str) -> Path:
@@ -97,9 +112,7 @@ def _cmd_capture(args: argparse.Namespace) -> int:
 
 def _cmd_calibrate(args: argparse.Namespace) -> int:
     llm = make_llm_client(args.llm)
-    cam = SimCamera.from_scene(_resolve_scene(args.scene))
-    with SimRenderer(cam) as r:
-        linear = r.render()
+    linear = _scene_linear(args.target, args.scene)
     base = ISPParams()
     rng = np.random.default_rng(args.seed)
 
