@@ -57,19 +57,25 @@ recover tests against a synthetic sensor.
 The same loop, same target and seed, driven by different proposers. This is the
 point of the abstraction: capability is the lever, the infrastructure is fixed.
 
-| Proposer          | Best ΔE2000 | Trajectory                       | Outcome              |
-|-------------------|------------:|----------------------------------|----------------------|
-| Heuristic         |        1.43 | 16.6 → 1.4                       | converged (4 iters)  |
-| LLM, Llama 3.1 8B |       12.5  | 16.6 → 19.9 → 14.7 → 12.5, plateau | improved, then stalled |
-| LLM, Llama 3.2 3B |       16.6  | 16.6 → 18.4, oscillated          | no improvement       |
+| Proposer             | Best ΔE2000 | Trajectory                         | Outcome                  |
+|----------------------|------------:|------------------------------------|--------------------------|
+| Heuristic            |        1.43 | 16.6 → 1.4                         | converged (4 iters)      |
+| LLM, Gemini 2.5 Flash |       8.61 | 16.6 → 14.3 → 12.8 → 9.3 → 8.61    | best LLM; quota-truncated |
+| LLM, Llama 3.1 8B    |       12.5  | 16.6 → 19.9 → 14.7 → 12.5, plateau | improved, then stalled   |
+| LLM, Llama 3.2 3B    |       16.6  | 16.6 → 18.4, oscillated            | no improvement           |
 
-The 3B model contradicted its own diagnosis and never improved. The 8B model
-reasoned across iterations (it referenced past attempts and moved the right gain
-in the right direction), cut the error by ~25%, then second-guessed itself and
-plateaued. The deterministic heuristic converges every time. In every case the
-loop clamped bad proposals, detected stalls, and preserved the best state with no
-code change between runs. A frontier API model is the path to closing the gap
-fully (`SENSORFORGE_LLM=anthropic`).
+Capability tracks the result. The 3B model contradicted its own diagnosis and
+never improved. The 8B model reasoned across iterations, cut the error ~25%, then
+second-guessed itself and plateaued. Gemini 2.5 Flash improved monotonically and
+was still falling steeply when its free-tier daily quota (20 requests/day) ran
+out, so 8.61 is a truncated partial, not a convergence ceiling. The deterministic
+heuristic converges every time.
+
+The point is the harness, not any single model: in every run, the same untouched
+loop clamped bad proposals to physical bounds, detected stalls, retried through
+rate limits with backoff, and, when a quota wall finally exhausted the retries,
+stopped gracefully with the best result preserved rather than crashing. Swap the
+model, the infrastructure holds.
 
 ## How it works
 
