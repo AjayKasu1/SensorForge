@@ -17,6 +17,7 @@ from numpy.typing import NDArray
 from sensorforge.agent.graph import CalibrationContext, run_calibration
 from sensorforge.agent.llm import make_llm_client
 from sensorforge.agent.memory import best_prior, record_run
+from sensorforge.agent.proposers import HeuristicProposer, LLMProposer
 from sensorforge.agent.state import AgentState, TunableParams
 from sensorforge.agent.tools import capture_real
 from sensorforge.capture.targets import checkerboard, uniform_field
@@ -111,7 +112,10 @@ def _cmd_capture(args: argparse.Namespace) -> int:
 
 
 def _cmd_calibrate(args: argparse.Namespace) -> int:
-    llm = make_llm_client(args.llm)
+    if args.proposer == "heuristic":
+        proposer = HeuristicProposer()
+    else:
+        proposer = LLMProposer(make_llm_client(args.llm))
     linear = _scene_linear(args.target, args.scene)
     base = ISPParams()
     rng = np.random.default_rng(args.seed)
@@ -132,7 +136,7 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
         linear_rgb=linear,
         real=real,
         base_params=base,
-        llm=llm,
+        proposer=proposer,
         run_dir=str(run_dir),
         rng=rng,
         n_average=args.avg,
@@ -185,6 +189,12 @@ def main(argv: list[str] | None = None) -> int:
     p_cal.add_argument("--avg", type=int, default=16, help="frames averaged per measurement")
     p_cal.add_argument("--index", type=int, default=0, help="webcam index (webcam source)")
     p_cal.add_argument("--frames", type=int, default=30, help="webcam frames (webcam source)")
+    p_cal.add_argument(
+        "--proposer",
+        choices=["llm", "heuristic"],
+        default="llm",
+        help="llm (needs Ollama/API) or heuristic (no LLM, reproducible)",
+    )
     p_cal.add_argument("--llm", default=None, help="ollama|openai|anthropic (else SENSORFORGE_LLM)")
     p_cal.add_argument("--seed", type=int, default=0)
     p_cal.add_argument("--warm-start", action="store_true", help="seed from best prior run")

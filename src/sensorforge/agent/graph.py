@@ -20,14 +20,9 @@ from langgraph.graph import END, StateGraph
 from loguru import logger
 from numpy.typing import NDArray
 
-from sensorforge.agent.llm import LLMClient
+from sensorforge.agent.proposers import Proposer
 from sensorforge.agent.state import AgentState, Assumption, Attempt, TunableParams
-from sensorforge.agent.tools import (
-    compute_metrics,
-    propose_param_update,
-    render_sim,
-    write_assumption,
-)
+from sensorforge.agent.tools import compute_metrics, render_sim, write_assumption
 from sensorforge.isp.params import ISPParams
 
 STALL_ROUNDS = 3
@@ -38,10 +33,11 @@ class CalibrationContext:
     linear_rgb: NDArray
     real: NDArray
     base_params: ISPParams
-    llm: LLMClient
+    proposer: Proposer
     run_dir: str
     rng: np.random.Generator
     n_average: int = 1  # sim frames averaged per measurement to cut noise
+    last_sim: NDArray | None = None  # the most recent measured frame, for the proposer
 
     def now(self) -> str:
         return datetime.now().isoformat(timespec="seconds")
@@ -69,6 +65,7 @@ def _make_measure(ctx: CalibrationContext):
     def measure(state: AgentState) -> dict:
         params = state.current.apply_to(ctx.base_params)
         sim = ctx.render_avg(params)
+        ctx.last_sim = sim  # hand the measured frame to the proposer
         metrics = compute_metrics(sim, ctx.real)
         attempt = Attempt(iteration=state.iteration, params=state.current, metrics=metrics)
         history = [*state.history, attempt]
@@ -92,7 +89,9 @@ def _make_propose(ctx: CalibrationContext):
     def propose(state: AgentState) -> dict:
         current = state.current
         last_metrics = state.history[-1].metrics
-        new_params, diagnosis = propose_param_update(ctx.llm, current, last_metrics, state.history)
+        new_params, diagnosis = ctx.proposer.propose(
+            current, ctx.last_sim, ctx.real, last_metrics, state.history
+        )
         assumptions = list(state.assumptions)
         for name in TunableParams.model_fields:
             if getattr(current, name) != getattr(new_params, name):

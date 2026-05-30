@@ -1,6 +1,7 @@
 import numpy as np
 
 from sensorforge.agent.graph import CalibrationContext, run_calibration
+from sensorforge.agent.proposers import LLMProposer
 from sensorforge.agent.state import AgentState, TunableParams
 from sensorforge.agent.tools import capture_real
 from sensorforge.isp.params import ISPParams
@@ -36,7 +37,12 @@ def _context(llm, run_dir, hidden_awb_r=1.0):
     rng = np.random.default_rng(0)
     real = capture_real("sim", linear_rgb=linear, hidden_params=hidden, rng=rng)
     return CalibrationContext(
-        linear_rgb=linear, real=real, base_params=base, llm=llm, run_dir=str(run_dir), rng=rng
+        linear_rgb=linear,
+        real=real,
+        base_params=base,
+        proposer=LLMProposer(llm),
+        run_dir=str(run_dir),
+        rng=rng,
     )
 
 
