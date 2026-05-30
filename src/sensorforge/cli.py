@@ -1,7 +1,7 @@
-"""Command-line entry point: ``sensorforge render`` and ``sensorforge capture``.
+"""Command-line entry point: ``sensorforge render | capture | calibrate``.
 
-Phase 1 surface is deliberately small. argparse keeps it dependency-free; if
-the command set grows past a handful we can revisit typer.
+argparse keeps it dependency-free; if the command set grows past a handful we
+can revisit typer.
 """
 
 from __future__ import annotations
@@ -14,13 +14,33 @@ import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
 
+from sensorforge.agent.graph import CalibrationContext, run_calibration
+from sensorforge.agent.llm import make_llm_client
+from sensorforge.agent.memory import best_prior, record_run
+from sensorforge.agent.state import AgentState, TunableParams
+from sensorforge.agent.tools import capture_real
 from sensorforge.capture.targets import checkerboard, uniform_field
 from sensorforge.capture.webcam import Webcam
+from sensorforge.isp.params import ISPParams
+from sensorforge.metrics.report import write_report
 from sensorforge.sim.camera import SimCamera
 from sensorforge.sim.renderer import SimRenderer
 
 SCENES_DIR = Path("scenes")
 DATA_DIR = Path("data")
+RUNS_DIR = Path("runs")
+
+# The hidden "real camera look" the agent recovers in sim-as-real mode: a more
+# neutral white balance and slightly different tone than the uncalibrated
+# defaults, so the starting gap is a large color cast (baseline deltaE > 10).
+SIM_REAL_PRESET = TunableParams(
+    exposure_ms=11.0,
+    black_level=0.04,
+    awb_gain_r=1.15,
+    awb_gain_g=1.0,
+    awb_gain_b=1.25,
+    gamma=2.0,
+)
 
 
 def _resolve_scene(scene: str) -> Path:
@@ -75,6 +95,57 @@ def _cmd_capture(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_calibrate(args: argparse.Namespace) -> int:
+    llm = make_llm_client(args.llm)
+    cam = SimCamera.from_scene(_resolve_scene(args.scene))
+    with SimRenderer(cam) as r:
+        linear = r.render()
+    base = ISPParams()
+    rng = np.random.default_rng(args.seed)
+
+    if args.real_source == "sim":
+        hidden = SIM_REAL_PRESET.apply_to(base)
+        real = capture_real(
+            "sim", linear_rgb=linear, hidden_params=hidden, frames=args.avg, rng=rng
+        )
+    else:
+        real = capture_real("webcam", webcam_index=args.index, frames=args.frames, rng=rng)
+
+    run_dir = RUNS_DIR / datetime.now().strftime("%Y%m%d_%H%M%S")
+    start = (
+        best_prior(args.target, RUNS_DIR / "learnings.jsonl") if args.warm_start else None
+    ) or (TunableParams())
+    ctx = CalibrationContext(
+        linear_rgb=linear,
+        real=real,
+        base_params=base,
+        llm=llm,
+        run_dir=str(run_dir),
+        rng=rng,
+        n_average=args.avg,
+    )
+    state0 = AgentState(
+        target=args.target,
+        real_source=args.real_source,
+        current=start,
+        max_iters=args.max_iters,
+        tolerance_de=args.tolerance,
+        run_dir=str(run_dir),
+    )
+    final = run_calibration(ctx, state0)
+
+    best_isp = final.best.params.apply_to(base)
+    write_report(run_dir, ctx.render_avg(best_isp), real, final.best.metrics, best_isp)
+    record_run(final, run_dir, RUNS_DIR / "learnings.jsonl")
+    logger.info(
+        "calibrate done: stop={} best deltaE2000={:.3g} report={}/report.md",
+        final.stop_reason,
+        final.best.metrics["deltaE2000"],
+        run_dir,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="sensorforge")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -91,6 +162,20 @@ def main(argv: list[str] | None = None) -> int:
     p_capture.add_argument("--index", type=int, default=0, help="webcam device index")
     p_capture.add_argument("--out", default=None, help="output .npy path")
     p_capture.set_defaults(func=_cmd_capture)
+
+    p_cal = sub.add_parser("calibrate", help="run the LLM calibration loop")
+    p_cal.add_argument("--target", choices=["uniform", "checkerboard"], default="uniform")
+    p_cal.add_argument("--real-source", choices=["sim", "webcam"], default="sim")
+    p_cal.add_argument("--scene", default="checkerboard", help="scene name or path to .xml")
+    p_cal.add_argument("--max-iters", type=int, default=20)
+    p_cal.add_argument("--tolerance", type=float, default=3.0, help="target deltaE2000")
+    p_cal.add_argument("--avg", type=int, default=16, help="frames averaged per measurement")
+    p_cal.add_argument("--index", type=int, default=0, help="webcam index (webcam source)")
+    p_cal.add_argument("--frames", type=int, default=30, help="webcam frames (webcam source)")
+    p_cal.add_argument("--llm", default=None, help="ollama|openai|anthropic (else SENSORFORGE_LLM)")
+    p_cal.add_argument("--seed", type=int, default=0)
+    p_cal.add_argument("--warm-start", action="store_true", help="seed from best prior run")
+    p_cal.set_defaults(func=_cmd_calibrate)
 
     args = parser.parse_args(argv)
     return args.func(args)

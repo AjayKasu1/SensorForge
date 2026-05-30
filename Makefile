@@ -21,6 +21,7 @@ demo:
 	@echo "demo not implemented yet; see Phase 5"
 	@exit 1
 
+# Reproducible sim-as-real calibration. Needs an LLM: Ollama running locally
+# (default) or SENSORFORGE_LLM=openai|anthropic with the matching API key.
 calibrate:
-	@echo "calibrate not implemented yet; see Phase 4"
-	@exit 1
+	uv run sensorforge calibrate --target uniform --real-source sim --max-iters 20
