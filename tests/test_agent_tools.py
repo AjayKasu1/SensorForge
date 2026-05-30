@@ -36,9 +36,26 @@ def test_render_sim_returns_uint8_frame():
 def test_capture_real_sim_matches_forward():
     lin = _linear()
     hidden = ISPParams()
-    a = capture_real("sim", linear_rgb=lin, hidden_params=hidden, rng=np.random.default_rng(1))
+    # With frames=1 the average is just the single render, so it matches forward.
+    a = capture_real(
+        "sim", linear_rgb=lin, hidden_params=hidden, frames=1, rng=np.random.default_rng(1)
+    )
     b = render_sim(lin, hidden, rng=np.random.default_rng(1))
     assert np.array_equal(a, b)
+
+
+def test_capture_real_sim_averaging_reduces_noise():
+    lin = _linear()
+    hidden = ISPParams()
+    one = capture_real(
+        "sim", linear_rgb=lin, hidden_params=hidden, frames=1, rng=np.random.default_rng(5)
+    )
+    many = capture_real(
+        "sim", linear_rgb=lin, hidden_params=hidden, frames=32, rng=np.random.default_rng(5)
+    )
+    # Both are valid frames; the averaged one is smoother (lower spatial std on
+    # a flat scene).
+    assert many.std() <= one.std()
 
 
 @pytest.mark.filterwarnings("ignore:divide by zero")

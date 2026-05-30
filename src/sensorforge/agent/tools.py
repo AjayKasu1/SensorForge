@@ -47,7 +47,10 @@ def capture_real(
     hardware). 'webcam' averages real frames to suppress temporal noise.
     """
     if real_source == "sim":
-        return forward(linear_rgb, hidden_params, rng)
+        # Average several noisy renders, mirroring the webcam path, so the
+        # reference has a low temporal-noise floor.
+        stack = np.stack([forward(linear_rgb, hidden_params, rng) for _ in range(frames)])
+        return np.round(stack.mean(axis=0)).astype(np.uint8)
     if real_source == "webcam":
         with Webcam(webcam_index) as cam:
             cam.lock_exposure_and_white_balance()

@@ -41,9 +41,18 @@ class CalibrationContext:
     llm: LLMClient
     run_dir: str
     rng: np.random.Generator
+    n_average: int = 1  # sim frames averaged per measurement to cut noise
 
     def now(self) -> str:
         return datetime.now().isoformat(timespec="seconds")
+
+    def render_avg(self, params: ISPParams) -> NDArray:
+        if self.n_average == 1:
+            return render_sim(self.linear_rgb, params, self.rng)
+        stack = np.stack(
+            [render_sim(self.linear_rgb, params, self.rng) for _ in range(self.n_average)]
+        )
+        return np.round(stack.mean(axis=0)).astype(np.uint8)
 
 
 def _stop_reason(state: AgentState, best: Attempt) -> str | None:
@@ -59,7 +68,7 @@ def _stop_reason(state: AgentState, best: Attempt) -> str | None:
 def _make_measure(ctx: CalibrationContext):
     def measure(state: AgentState) -> dict:
         params = state.current.apply_to(ctx.base_params)
-        sim = render_sim(ctx.linear_rgb, params, ctx.rng)
+        sim = ctx.render_avg(params)
         metrics = compute_metrics(sim, ctx.real)
         attempt = Attempt(iteration=state.iteration, params=state.current, metrics=metrics)
         history = [*state.history, attempt]
