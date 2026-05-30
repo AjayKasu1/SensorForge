@@ -77,6 +77,26 @@ def test_propose_param_update_parses_clamps_and_keeps_rest():
     assert len(llm.seen) == 2  # diagnosis then proposal
 
 
+def test_propose_retries_then_succeeds_on_transient_error(monkeypatch):
+    # A rate-limit-style failure on the first call should be retried, not fatal.
+    monkeypatch.setattr("sensorforge.agent.tools.time.sleep", lambda s: None)
+
+    class FlakyLLM:
+        def __init__(self):
+            self.calls = 0
+
+        def generate(self, messages):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("429 RESOURCE_EXHAUSTED")
+            if "JSON only" in messages[-1].content:
+                return '{"awb_gain_r": 1.0}'
+            return "diagnosis"
+
+    new, _ = propose_param_update(FlakyLLM(), TunableParams(), {"deltaE2000": 8.0}, history=[])
+    assert new.awb_gain_r == 1.0  # recovered after the retry
+
+
 def test_write_assumption_appends(tmp_path):
     a1 = Assumption(timestamp="t0", parameter="gamma", value=2.4, justification="too dark")
     a2 = Assumption(timestamp="t1", parameter="awb_gain_r", value=1.2, justification="too red")
