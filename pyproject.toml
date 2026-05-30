@@ -20,6 +20,7 @@ dependencies = [
     "opencv-python>=4.9,<5",
     "pydantic>=2.6,<3",
     "scikit-image>=0.22,<0.26",
+    "streamlit>=1.38,<2",
 ]
 
 [project.scripts]
