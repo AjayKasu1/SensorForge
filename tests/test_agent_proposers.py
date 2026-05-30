@@ -36,7 +36,7 @@ def test_heuristic_converges_on_uniform_sim_as_real():
         real=real,
         base_params=base,
         proposer=HeuristicProposer(),
-        run_dir=str("/tmp/sf_heur_test"),
+        run_dir="/tmp/sf_heur_test",
         rng=rng,
         n_average=16,
     )
