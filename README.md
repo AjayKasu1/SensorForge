@@ -1,49 +1,101 @@
 # SensorForge
 
-Calibrate a simulated MuJoCo camera against a real webcam, automatically, with an LLM-driven
-loop that proposes parameter updates and logs every assumption it makes.
+Calibrate a simulated MuJoCo camera to match a real one, automatically. An
+agent renders a scene through a physically-grounded ISP, compares it to a
+reference frame, and proposes parameter updates until the two match, logging
+every assumption it makes along the way.
 
-> Status: bootstrap. Phase 0 complete. Phases 1–5 land in subsequent commits.
+![calibration demo](docs/demo.gif)
+
+*Left: uncalibrated sim. Right: target. The loop closes the color gap in a few
+iterations.*
 
 ## What it is
 
 A Python framework that:
-1. Renders a scene through a configurable ISP pipeline in MuJoCo,
-2. Captures the same scene from a real webcam,
-3. Asks an LLM to diagnose the gap and propose parameter updates,
-4. Iterates until SSIM / ΔE2000 / EMVA-1288 metrics fall within tolerance,
+1. Renders a scene through a configurable camera in MuJoCo (linear scene radiance).
+2. Pushes it through a full ISP pipeline (optics, sensor noise, demosaic, color).
+3. Compares the result to a reference (a real webcam, or a hidden sim preset).
+4. Runs a LangGraph loop where an LLM (or a heuristic) tunes the ISP until
+   SSIM / ΔE2000 fall within tolerance.
 5. Produces a per-run report and a documented assumptions log.
-
-## Why it exists
-
-Sim-to-real calibration is usually done by hand. This project explores whether an agent can
-drive the loop while staying auditable. Every parameter change is logged with a justification.
 
 ## Quickstart
 
 ```bash
 uv sync
-uv run pytest
+uv run pytest          # or: make test
+make demo              # reproducible calibration, no LLM or webcam needed
+make dashboard         # browse runs in Streamlit
 ```
 
-End-to-end demo lands in Phase 5:
-
-```bash
-make demo   # TODO (Phase 5)
-```
-
-## Demo
-
-TODO. 90-second screen recording (Phase 5).
+`make demo` runs in well under a minute on a laptop and needs no API keys, no
+local model, and no camera.
 
 ## Results
 
-TODO. Table of SSIM / PSNR / ΔE2000 / EMVA-1288 numbers on the reference webcam (Phase 4–5).
+Reproducible sim-as-real run (`make demo`, seed 0, uniform target, heuristic
+proposer). The agent starts from uncalibrated ISP defaults and recovers a hidden
+near-neutral camera look:
 
-## Architecture
+| Metric        | Uncalibrated | Calibrated |
+|---------------|-------------:|-----------:|
+| ΔE2000        |        16.62 |       1.43 |
+| PSNR (dB)     |        21.67 |      43.02 |
+| SSIM          |         0.99 |      0.995 |
 
-See [docs/architecture.md](docs/architecture.md).
+Converged in 4 iterations (stop reason: within tolerance, target ΔE2000 < 3).
+SSIM is near 1 on a flat field by construction; ΔE2000 is the meaningful color
+metric here.
+
+The EMVA-1288 estimators (temporal dark noise, photon-transfer system gain,
+PRNU, DSNU) recover injected ground truth within 5%, verified by inject-and-
+recover tests against a synthetic sensor.
+
+## How it works
+
+- [docs/architecture.md](docs/architecture.md): components and data flow.
+- [docs/isp_pipeline.md](docs/isp_pipeline.md): every ISP stage with its
+  equation, units, and a citation.
+- [docs/emva1288_subset.md](docs/emva1288_subset.md): which sensor metrics are
+  implemented, how, and what is left out.
+- [docs/adr/](docs/adr/): the decisions (MuJoCo, LangGraph, EMVA scope, ISP
+  ordering, LLM adapter, tunable parameters).
+
+## Running the real LLM loop
+
+The demo uses a deterministic heuristic proposer so anyone can reproduce the
+numbers without setup. The project's actual method is LLM-driven: swap in a
+model and the loop is identical.
+
+```bash
+# Local default (needs Ollama running with llama3.2):
+sensorforge calibrate --target uniform --real-source sim --max-iters 20
+
+# Or a hosted model:
+SENSORFORGE_LLM=anthropic sensorforge calibrate --real-source sim
+
+# Against a real webcam:
+sensorforge calibrate --real-source webcam --target uniform
+```
+
+The agent may tune only the six-knob color and exposure chain (exposure, black
+level, white-balance gains, gamma); the scene light, full-well, noise, optics,
+and CCM are fixed to keep the search well conditioned. See
+[ADR 006](docs/adr/006-tunable-parameters.md).
 
 ## Limitations
 
-See `LIMITATIONS.md` (lands in Phase 5).
+See [LIMITATIONS.md](LIMITATIONS.md). Short version: single illuminant, uniform
+target for v1, CCM and ColorChecker deferred, and the headline numbers use the
+heuristic proposer (the LLM path needs a model).
+
+## Development
+
+```bash
+make test        # pytest
+make coverage    # enforce >80% on isp/ and metrics/
+make lint        # ruff check + format check
+```
+
+Python 3.11, managed with `uv`. MIT licensed.
