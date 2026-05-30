@@ -47,9 +47,7 @@ def load_learnings(learnings_path: str | Path = DEFAULT_LEARNINGS) -> list[dict]
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
-def best_prior(
-    target: str, learnings_path: str | Path = DEFAULT_LEARNINGS
-) -> TunableParams | None:
+def best_prior(target: str, learnings_path: str | Path = DEFAULT_LEARNINGS) -> TunableParams | None:
     """Best past tunable params for ``target`` (lowest ΔE), or None if no usable
     prior run exists.
     """
