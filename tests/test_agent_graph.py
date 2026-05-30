@@ -70,6 +70,27 @@ def test_loop_stops_when_stalled(tmp_path):
     assert final.iteration - final.best.iteration >= 3
 
 
+class _DeadLLM:
+    """Always fails, like an exhausted API quota."""
+
+    def generate(self, messages):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED")
+
+
+def test_loop_stops_gracefully_when_proposer_fails(tmp_path, monkeypatch):
+    # No real backoff sleeps during the test.
+    monkeypatch.setattr("sensorforge.agent.tools.time.sleep", lambda s: None)
+    from sensorforge.agent.proposers import LLMProposer
+
+    ctx = _context(_DeadLLM(), tmp_path, hidden_awb_r=1.0)
+    ctx.proposer = LLMProposer(_DeadLLM())
+    final = run_calibration(ctx, AgentState(max_iters=20, tolerance_de=0.1))
+    # It did not crash; it ended with the baseline as best.
+    assert final.stop_reason == "proposer_unavailable"
+    assert final.best is not None
+    assert len(final.history) == 1  # measured once, proposer failed, stopped
+
+
 def test_loop_stops_immediately_when_already_matched(tmp_path):
     # Hidden params equal the starting params, so iteration 0 is within tolerance.
     ctx = _context(ScriptedLLM([]), tmp_path, hidden_awb_r=TunableParams().awb_gain_r)

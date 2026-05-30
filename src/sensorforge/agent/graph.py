@@ -89,9 +89,16 @@ def _make_propose(ctx: CalibrationContext):
     def propose(state: AgentState) -> dict:
         current = state.current
         last_metrics = state.history[-1].metrics
-        new_params, diagnosis = ctx.proposer.propose(
-            current, ctx.last_sim, ctx.real, last_metrics, state.history
-        )
+        try:
+            new_params, diagnosis = ctx.proposer.propose(
+                current, ctx.last_sim, ctx.real, last_metrics, state.history
+            )
+        except Exception as e:
+            # Proposer gave up (e.g. an LLM quota wall the backoff couldn't beat).
+            # End the run gracefully, keeping the best result, so the report and
+            # assumptions are still produced.
+            logger.error("proposer unavailable ({}); stopping with best so far", str(e)[:100])
+            return {"stop_reason": "proposer_unavailable"}
         assumptions = list(state.assumptions)
         for name in TunableParams.model_fields:
             if getattr(current, name) != getattr(new_params, name):
@@ -122,7 +129,13 @@ def build_graph(ctx: CalibrationContext):
         lambda s: "stop" if s.stop_reason else "continue",
         {"continue": "propose", "stop": END},
     )
-    builder.add_edge("propose", "measure")
+    # propose normally loops back to measure, but ends the run if it set a stop
+    # reason (proposer gave up), so a dead LLM still yields a report.
+    builder.add_conditional_edges(
+        "propose",
+        lambda s: "stop" if s.stop_reason else "measure",
+        {"measure": "measure", "stop": END},
+    )
     return builder.compile()
 
 
