@@ -1,5 +1,9 @@
 # SensorForge
 
+[![CI](https://github.com/AjayKasu1/SensorForge/actions/workflows/ci.yml/badge.svg)](https://github.com/AjayKasu1/SensorForge/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+
 Calibrate a simulated MuJoCo camera to match a real one, automatically. An
 agent renders a scene through a physically-grounded ISP, compares it to a
 reference frame, and proposes parameter updates until the two match, logging
@@ -19,6 +23,14 @@ A Python framework that:
 4. Runs a LangGraph loop where an LLM (or a heuristic) tunes the ISP until
    SSIM / ΔE2000 fall within tolerance.
 5. Produces a per-run report and a documented assumptions log.
+
+## Install
+
+```bash
+pip install sensorforge        # once published to PyPI
+# or from source:
+git clone https://github.com/AjayKasu1/SensorForge && cd SensorForge && uv sync
+```
 
 ## Quickstart
 
