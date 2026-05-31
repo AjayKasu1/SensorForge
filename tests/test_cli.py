@@ -109,3 +109,35 @@ def test_calibrate_npy_source_runs_against_captured_reference(tmp_path, monkeypa
     assert rc == 0
     rd = next((tmp_path / "runs").glob("*/"))
     assert (rd / "report.md").exists() and (rd / "state.json").exists()
+
+
+def test_calibrate_image_source_runs_against_reference_image(tmp_path, monkeypatch):
+    import cv2
+
+    from sensorforge import cli
+
+    monkeypatch.setattr(cli, "RUNS_DIR", tmp_path / "runs")
+    # A flat gray reference image, like a displayed/printed calibration target.
+    ref = tmp_path / "gray.png"
+    cv2.imwrite(str(ref), np.full((200, 320, 3), 119, dtype=np.uint8))
+
+    rc = main(
+        [
+            "calibrate",
+            "--real-source",
+            "image",
+            "--real-image",
+            str(ref),
+            "--proposer",
+            "heuristic",
+            "--scene",
+            str(SCENE),
+            "--max-iters",
+            "3",
+            "--avg",
+            "4",
+        ]
+    )
+    assert rc == 0
+    rd = next((tmp_path / "runs").glob("*/"))
+    assert (rd / "report.md").exists()

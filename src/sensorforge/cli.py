@@ -10,6 +10,7 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+import cv2
 import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
@@ -132,14 +133,18 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
         if arr.ndim == 4:  # frame stack -> temporal average
             arr = arr.mean(axis=0)
         real = arr if arr.dtype == np.uint8 else (np.clip(arr, 0, 1) * 255 + 0.5).astype(np.uint8)
+    elif args.real_source == "image":
+        # A reference image file (PNG/JPG), e.g. a printed/displayed target.
+        bgr = cv2.imread(args.real_image)
+        if bgr is None:
+            raise FileNotFoundError(f"could not read image {args.real_image!r}")
+        real = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
     else:
         real = capture_real("webcam", webcam_index=args.index, frames=args.frames, rng=rng)
 
     # A real webcam may not honor the requested resolution; match it to the sim
     # so the metrics compare pixel-for-pixel.
     if real.shape[:2] != linear.shape[:2]:
-        import cv2
-
         h, w = linear.shape[:2]
         real = cv2.resize(real, (w, h), interpolation=cv2.INTER_AREA)
         logger.info("resized webcam capture to sim resolution {}x{}", w, h)
@@ -203,8 +208,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_cal = sub.add_parser("calibrate", help="run the LLM calibration loop")
     p_cal.add_argument("--target", choices=["uniform", "checkerboard"], default="uniform")
-    p_cal.add_argument("--real-source", choices=["sim", "webcam", "npy"], default="sim")
+    p_cal.add_argument("--real-source", choices=["sim", "webcam", "npy", "image"], default="sim")
     p_cal.add_argument("--real-npy", default=None, help="path to a captured .npy (real-source npy)")
+    p_cal.add_argument("--real-image", default=None, help="reference image path")
     p_cal.add_argument("--scene", default="checkerboard", help="scene name or path to .xml")
     p_cal.add_argument("--max-iters", type=int, default=20)
     p_cal.add_argument("--tolerance", type=float, default=3.0, help="target deltaE2000")
