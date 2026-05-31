@@ -8,6 +8,13 @@ An honest list of what SensorForge does not do, or does only in a limited way.
   field, where AWB gains plus exposure are enough to align the three channel
   means. A multi-patch ColorChecker, which is what makes the 3x3 CCM
   identifiable, is deferred to v2. The CCM is held at identity (ADR 006).
+- **Radiometric only, no geometric registration.** The loop tunes color and
+  exposure on spatially-aligned images. A structured target (e.g. a
+  checkerboard) needs corner detection, a homography estimate, and a warp to
+  align sim and real before radiometry can be matched. Without it the loop
+  stalls on the spatial mismatch: a checkerboard PNG against the checkerboard
+  scene plateaus around deltaE2000 41 (the stall detector stops it). Geometric
+  calibration is v2; uniform/flat targets are the v1 scope.
 - **Single illuminant.** White balance assumes one light. Mixed-illuminant
   scenes are out of scope.
 - **Fixed sensor and optics during calibration.** Only the six color/exposure
