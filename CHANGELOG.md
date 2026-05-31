@@ -27,6 +27,14 @@ First end-to-end version: render, ISP, metrics, and an agentic calibration loop.
   dashboard and `make demo` / `make dashboard`.
 - Six ADRs documenting the key decisions, and docs for the architecture, ISP
   pipeline, and EMVA-1288 subset.
+- **More reference sources**: calibrate against a hidden sim preset, a live
+  webcam, a captured `.npy` stack, or an image file (`--real-source image`).
+- **Gemini provider** added to the LLM adapter, with a `--model` override flag.
+- **Fault tolerance**: LLM calls retry with backoff through rate limits, and the
+  loop stops gracefully (preserving the best result) when a proposer gives up,
+  both found and fixed against live API quota walls.
+- **Packaging**: PyPI metadata, MIT LICENSE, scenes shipped as package data, and
+  a GitHub Actions CI workflow (ruff + pytest coverage gate, headless MuJoCo).
 
 ### Known limitations
 
