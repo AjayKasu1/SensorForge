@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime
+from importlib.resources import files
 from pathlib import Path
 
 import cv2
@@ -61,11 +62,16 @@ def _scene_linear(target: str, scene: str) -> NDArray[np.float32]:
 
 
 def _resolve_scene(scene: str) -> Path:
-    """Accept either a bare scene name or a path to an .xml."""
+    """Resolve a scene to a file path: an explicit .xml path, then the repo
+    ``scenes/`` dir (dev), then the packaged scene data (installed via pip).
+    """
     candidate = Path(scene)
     if candidate.suffix == ".xml" and candidate.exists():
         return candidate
-    return SCENES_DIR / f"{scene}.xml"
+    local = SCENES_DIR / f"{scene}.xml"
+    if local.exists():
+        return local
+    return Path(str(files("sensorforge").joinpath("scenes", f"{scene}.xml")))
 
 
 def _reference_target(name: str) -> NDArray[np.float32]:

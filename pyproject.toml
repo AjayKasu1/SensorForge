@@ -1,12 +1,28 @@
 [project]
 name = "sensorforge"
-version = "0.0.1"
-description = "Calibrate a MuJoCo simulated camera to match a real webcam via an LLM-driven loop."
+version = "0.1.0"
+description = "Calibrate a MuJoCo simulated camera to match a real one via an agentic loop."
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 authors = [{ name = "Ajay Kasu" }]
 license = { text = "MIT" }
-# Runtime deps are added per phase as real imports appear.
+keywords = [
+    "sim-to-real",
+    "camera-calibration",
+    "mujoco",
+    "image-signal-processing",
+    "robotics",
+    "emva1288",
+    "llm-agent",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "anthropic>=0.34,<1",
     "colour-science>=0.4,<0.5",
@@ -24,6 +40,11 @@ dependencies = [
     "streamlit>=1.38,<2",
 ]
 
+[project.urls]
+Homepage = "https://github.com/AjayKasu1/SensorForge"
+Repository = "https://github.com/AjayKasu1/SensorForge"
+Issues = "https://github.com/AjayKasu1/SensorForge/issues"
+
 [project.scripts]
 sensorforge = "sensorforge.cli:main"
 
@@ -33,6 +54,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sensorforge"]
+
+# Ship the calibration scenes as package data so an installed CLI can find them.
+[tool.hatch.build.targets.wheel.force-include]
+"scenes" = "sensorforge/scenes"
 
 [dependency-groups]
 dev = [
