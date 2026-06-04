@@ -141,10 +141,11 @@ def main() -> None:
 
     with upload_tab:
         uploaded = st.file_uploader("Reference image", type=["png", "jpg", "jpeg"])
-        c1, c2, c3 = st.columns(3)
-        proposer = c1.selectbox("Proposer", ["heuristic", "llm"])
-        llm = c2.selectbox("LLM", ["gemini", "anthropic", "openai", "ollama"])
-        model = c3.text_input("Model override", value="")
+        c1, c2, c3, c4 = st.columns(4)
+        target = c1.selectbox("Target", ["uniform", "checkerboard"])
+        proposer = c2.selectbox("Proposer", ["heuristic", "llm"])
+        llm = c3.selectbox("LLM", ["gemini", "anthropic", "openai", "ollama"])
+        model = c4.text_input("Model override", value="")
 
         c4, c5, c6 = st.columns(3)
         max_iters = c4.number_input("Max iterations", min_value=1, max_value=50, value=8)
@@ -163,6 +164,7 @@ def main() -> None:
                     proposer=proposer,
                     llm=llm if proposer == "llm" else None,
                     model=model or None,
+                    target=target,
                     max_iters=int(max_iters),
                     tolerance=float(tolerance),
                     avg=int(avg),
