@@ -142,7 +142,7 @@ def main() -> None:
     with upload_tab:
         uploaded = st.file_uploader("Reference image", type=["png", "jpg", "jpeg"])
         c1, c2, c3, c4 = st.columns(4)
-        target = c1.selectbox("Target", ["uniform", "checkerboard"])
+        target = c1.selectbox("Target", ["image_pattern", "uniform", "checkerboard"])
         proposer = c2.selectbox("Proposer", ["heuristic", "llm"])
         llm = c3.selectbox("LLM", ["gemini", "anthropic", "openai", "ollama"])
         model = c4.text_input("Model override", value="")

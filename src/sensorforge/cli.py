@@ -49,6 +49,13 @@ SIM_REAL_PRESET = TunableParams(
 UNIFORM_LEVEL = 0.5  # mid-gray scene radiance for the uniform calibration target
 
 
+def _load_image_rgb(path: str | Path) -> NDArray[np.uint8]:
+    bgr = cv2.imread(str(path))
+    if bgr is None:
+        raise FileNotFoundError(f"could not read image {str(path)!r}")
+    return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+
+
 def _scene_linear(target: str, scene: str) -> NDArray[np.float32]:
     """Linear RGB the ISP calibrates on. The uniform target is a flat field (the
     ISP's spatial effects still apply); other targets render the MJCF scene.
@@ -123,9 +130,20 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
         proposer = HeuristicProposer()
     else:
         proposer = LLMProposer(make_llm_client(args.llm, args.model))
-    linear = _scene_linear(args.target, args.scene)
     base = ISPParams()
     rng = np.random.default_rng(args.seed)
+
+    if args.target == "image_pattern":
+        if args.real_source != "image":
+            raise ValueError("--target image_pattern requires --real-source image")
+        # Use the uploaded/reference image as the spatial pattern, then let the
+        # ISP alter it. This isolates appearance calibration from geometry
+        # mismatch for screenshots, gray bands, checkerboards, and other 2D
+        # targets that are not MuJoCo scene renders.
+        real = _load_image_rgb(args.real_image)
+        linear = real.astype(np.float32) / 255.0
+    else:
+        linear = _scene_linear(args.target, args.scene)
 
     if args.real_source == "sim":
         hidden = SIM_REAL_PRESET.apply_to(base)
@@ -141,10 +159,7 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
         real = arr if arr.dtype == np.uint8 else (np.clip(arr, 0, 1) * 255 + 0.5).astype(np.uint8)
     elif args.real_source == "image":
         # A reference image file (PNG/JPG), e.g. a printed/displayed target.
-        bgr = cv2.imread(args.real_image)
-        if bgr is None:
-            raise FileNotFoundError(f"could not read image {args.real_image!r}")
-        real = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        real = _load_image_rgb(args.real_image)
     else:
         real = capture_real("webcam", webcam_index=args.index, frames=args.frames, rng=rng)
 
@@ -213,7 +228,12 @@ def main(argv: list[str] | None = None) -> int:
     p_capture.set_defaults(func=_cmd_capture)
 
     p_cal = sub.add_parser("calibrate", help="run the LLM calibration loop")
-    p_cal.add_argument("--target", choices=["uniform", "checkerboard"], default="uniform")
+    p_cal.add_argument(
+        "--target",
+        choices=["uniform", "checkerboard", "image_pattern"],
+        default="uniform",
+        help="calibration target; image_pattern uses --real-image as the sim pattern",
+    )
     p_cal.add_argument("--real-source", choices=["sim", "webcam", "npy", "image"], default="sim")
     p_cal.add_argument("--real-npy", default=None, help="path to a captured .npy (real-source npy)")
     p_cal.add_argument("--real-image", default=None, help="reference image path")

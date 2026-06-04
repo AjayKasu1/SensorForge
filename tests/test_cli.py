@@ -141,3 +141,39 @@ def test_calibrate_image_source_runs_against_reference_image(tmp_path, monkeypat
     assert rc == 0
     rd = next((tmp_path / "runs").glob("*/"))
     assert (rd / "report.md").exists()
+
+
+def test_calibrate_image_pattern_uses_reference_as_spatial_target(tmp_path, monkeypatch):
+    import cv2
+
+    from sensorforge import cli
+
+    monkeypatch.setattr(cli, "RUNS_DIR", tmp_path / "runs")
+    ref = tmp_path / "bands.png"
+    img = np.zeros((60, 90, 3), dtype=np.uint8)
+    img[:, :30] = 64
+    img[:, 30:60] = 128
+    img[:, 60:] = 192
+    cv2.imwrite(str(ref), img)
+
+    rc = main(
+        [
+            "calibrate",
+            "--target",
+            "image_pattern",
+            "--real-source",
+            "image",
+            "--real-image",
+            str(ref),
+            "--proposer",
+            "heuristic",
+            "--max-iters",
+            "2",
+            "--avg",
+            "2",
+        ]
+    )
+
+    assert rc == 0
+    rd = next((tmp_path / "runs").glob("*/"))
+    assert (rd / "report.md").exists()
