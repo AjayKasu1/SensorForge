@@ -25,6 +25,9 @@ htmlcov/
 # Project artifacts (gitignored per project plan)
 data/
 runs/
+docs/upload_check_*.gif
+docs/webcam_check.gif
+docs/image_pattern_*_check*.gif
 
 # Local env
 .env
