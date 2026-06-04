@@ -1,6 +1,8 @@
+from io import BytesIO
+
 from sensorforge.agent.memory import record_run
 from sensorforge.agent.state import AgentState, Attempt, TunableParams
-from sensorforge.dashboard.app import list_runs, load_run
+from sensorforge.dashboard.app import list_runs, load_run, save_uploaded_image
 
 
 def _run_with_history(run_dir):
@@ -38,3 +40,14 @@ def test_list_runs_finds_only_run_dirs_newest_first(tmp_path):
 
 def test_list_runs_empty_when_missing(tmp_path):
     assert list_runs(tmp_path / "nope") == []
+
+
+def test_save_uploaded_image_persists_bytes(tmp_path):
+    uploaded = BytesIO(b"fake image")
+    uploaded.name = "../target.png"
+
+    path = save_uploaded_image(uploaded, tmp_path)
+
+    assert path.parent == tmp_path
+    assert path.name.endswith("_target.png")
+    assert path.read_bytes() == b"fake image"
