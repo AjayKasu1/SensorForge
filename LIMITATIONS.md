@@ -51,7 +51,9 @@ An honest list of what SensorForge does not do, or does only in a limited way.
 
 ## Tooling
 
-- **No CI.** This is a fast-moving local portfolio project; tests and lint are
-  run locally via `make`.
+- **CI is scoped to the reproducible path.** GitHub Actions runs ruff, format
+  checks, pytest, and an ISP/metrics coverage gate using headless MuJoCo. Webcam
+  capture and live LLM calls are intentionally not run in CI because they depend
+  on local hardware, API keys, and quota.
 - A harmless third-party deprecation warning from `langgraph` surfaces once in
   the pytest output.

@@ -29,3 +29,6 @@ runs/
 # Local env
 .env
 .env.local
+
+# Local assistant/tooling state
+.claude/
