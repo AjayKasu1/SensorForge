@@ -19,7 +19,8 @@ iterations.*
 A Python framework that:
 1. Renders a scene through a configurable camera in MuJoCo (linear scene radiance).
 2. Pushes it through a full ISP pipeline (optics, sensor noise, demosaic, color).
-3. Compares the result to a reference (a real webcam, or a hidden sim preset).
+3. Compares the result to a reference (uploaded image, real webcam, `.npy`
+   frame stack, or hidden sim preset).
 4. Runs a LangGraph loop where an LLM (or a heuristic) tunes the ISP until
    SSIM / ΔE2000 fall within tolerance.
 5. Produces a per-run report and a documented assumptions log.
@@ -29,7 +30,9 @@ A Python framework that:
 ```bash
 pip install sensorforge        # once published to PyPI
 # or from source:
-git clone https://github.com/AjayKasu1/SensorForge && cd SensorForge && uv sync
+git clone https://github.com/AjayKasu1/SensorForge.git
+cd SensorForge
+uv sync
 ```
 
 ## Quickstart
@@ -43,6 +46,30 @@ make dashboard         # browse runs in Streamlit
 
 `make demo` runs in well under a minute on a laptop and needs no API keys, no
 local model, and no camera.
+
+## Dashboard
+
+Launch the local dashboard:
+
+```bash
+make dashboard
+```
+
+Then open [http://localhost:8501](http://localhost:8501). The dashboard lets
+users inspect previous runs or upload a PNG/JPG reference image and run a new
+calibration.
+
+For uploaded 2D targets such as gray bands, checkerboards, screenshots, or
+printed calibration images, choose:
+
+```text
+Target: image_pattern
+Proposer: heuristic
+```
+
+`image_pattern` uses the uploaded image as the simulated spatial pattern and
+calibrates the camera/ISP appearance on top of it. This avoids comparing a flat
+or MuJoCo-rendered scene against a different uploaded pattern.
 
 ## Bring your own LLM
 
