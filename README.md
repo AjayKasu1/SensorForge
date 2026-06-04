@@ -44,6 +44,35 @@ make dashboard         # browse runs in Streamlit
 `make demo` runs in well under a minute on a laptop and needs no API keys, no
 local model, and no camera.
 
+## Bring your own LLM
+
+SensorForge can run with a local model or with a user's own hosted-model API
+key. The calibration loop uses the same proposer interface either way: it
+renders, measures the image gap, asks the model for a bounded ISP-parameter
+update, clamps unsafe proposals, retries through transient rate limits, and
+preserves the best result if the provider becomes unavailable.
+
+```bash
+# Gemini
+export GEMINI_API_KEY=...
+sensorforge calibrate --llm gemini --model gemini-2.5-flash --real-source sim
+
+# Claude / Anthropic
+export ANTHROPIC_API_KEY=...
+sensorforge calibrate --llm anthropic --model claude-3-5-sonnet-latest --real-source sim
+
+# OpenAI
+export OPENAI_API_KEY=...
+sensorforge calibrate --llm openai --model gpt-4o-mini --real-source sim
+
+# Local Ollama, no hosted API key
+sensorforge calibrate --llm ollama --model llama3.2 --real-source sim
+```
+
+Provider selection can also be set with `SENSORFORGE_LLM=gemini|anthropic|openai|ollama`.
+API keys are read from the provider SDKs or standard environment variables;
+SensorForge never hardcodes or stores them.
+
 ## Results
 
 Reproducible sim-as-real run (`make demo`, seed 0, uniform target, heuristic
