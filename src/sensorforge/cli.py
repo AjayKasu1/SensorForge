@@ -47,6 +47,14 @@ SIM_REAL_PRESET = TunableParams(
 )
 
 UNIFORM_LEVEL = 0.5  # mid-gray scene radiance for the uniform calibration target
+IMAGE_PATTERN_START = TunableParams(
+    exposure_ms=10.0,
+    black_level=0.0,
+    awb_gain_r=1.0,
+    awb_gain_g=1.0,
+    awb_gain_b=1.0,
+    gamma=2.2,
+)
 
 
 def _load_image_rgb(path: str | Path) -> NDArray[np.uint8]:
@@ -54,6 +62,30 @@ def _load_image_rgb(path: str | Path) -> NDArray[np.uint8]:
     if bgr is None:
         raise FileNotFoundError(f"could not read image {str(path)!r}")
     return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+
+
+def _srgb_to_linear(img: NDArray[np.uint8], gamma: float = 2.2) -> NDArray[np.float32]:
+    return (img.astype(np.float32) / 255.0) ** gamma
+
+
+def _image_pattern_base_params() -> ISPParams:
+    """Neutral fixed ISP for uploaded 2D targets.
+
+    Uploaded PNG/JPG targets already contain their intended spatial pattern.
+    Keeping webcam-like lens distortion, vignetting, and sensor noise would
+    create differences unrelated to calibration. The tunable color/exposure
+    knobs still run through the same loop.
+    """
+    p = ISPParams()
+    p.optics.vignette_strength = 0.0
+    p.optics.radial_k1 = 0.0
+    p.optics.radial_k2 = 0.0
+    p.optics.radial_k3 = 0.0
+    p.optics.tangential_p1 = 0.0
+    p.optics.tangential_p2 = 0.0
+    p.sensor.dark_current_e_per_s = 0.0
+    p.sensor.read_noise_e = 0.0
+    return p
 
 
 def _scene_linear(target: str, scene: str) -> NDArray[np.float32]:
@@ -130,7 +162,7 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
         proposer = HeuristicProposer()
     else:
         proposer = LLMProposer(make_llm_client(args.llm, args.model))
-    base = ISPParams()
+    base = _image_pattern_base_params() if args.target == "image_pattern" else ISPParams()
     rng = np.random.default_rng(args.seed)
 
     if args.target == "image_pattern":
@@ -141,7 +173,7 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
         # mismatch for screenshots, gray bands, checkerboards, and other 2D
         # targets that are not MuJoCo scene renders.
         real = _load_image_rgb(args.real_image)
-        linear = real.astype(np.float32) / 255.0
+        linear = _srgb_to_linear(real, IMAGE_PATTERN_START.gamma)
     else:
         linear = _scene_linear(args.target, args.scene)
 
@@ -173,7 +205,7 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
     run_dir = RUNS_DIR / datetime.now().strftime("%Y%m%d_%H%M%S")
     start = (
         best_prior(args.target, RUNS_DIR / "learnings.jsonl") if args.warm_start else None
-    ) or (TunableParams())
+    ) or (IMAGE_PATTERN_START if args.target == "image_pattern" else TunableParams())
     ctx = CalibrationContext(
         linear_rgb=linear,
         real=real,
